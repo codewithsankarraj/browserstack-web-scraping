@@ -4,34 +4,37 @@ import os
 import re
 from collections import Counter
 import html
-import json
-import urllib.parse
-
-# Set your API key here (DO NOT share this publicly in real applications)
-API_KEY = "AIzaSyCbront9JOSSC3vEa-rBM4rLPx82pg2Kio"
+import time
 
 # Create folder to store images
 os.makedirs("elpais_images", exist_ok=True)
 
-def translate_text(text, target_lang='en', source_lang='es'):
+def translate_text(text, source_lang='es', target_lang='en'):
     """
-    Translate text using Google Translate API directly
+    Translate text using MyMemory's free translation API
     """
-    url = "https://translation.googleapis.com/language/translate/v2"
+    # Clean the text first
+    text = clean_text(text)
     
+    url = "https://api.mymemory.translated.net/get"
     params = {
         'q': text,
-        'target': target_lang,
-        'source': source_lang,
-        'key': API_KEY,
-        'format': 'text'  # This helps with HTML content
+        'langpair': f"{source_lang}|{target_lang}"
     }
     
     try:
-        response = requests.post(url, params=params)
+        # Add a small delay to respect rate limits
+        time.sleep(1)
+        response = requests.get(url, params=params)
         response.raise_for_status()
         result = response.json()
-        return result['data']['translations'][0]['translatedText']
+        
+        if result['responseStatus'] == 200:
+            translated = result['responseData']['translatedText']
+            return html.unescape(translated)
+        else:
+            print(f"❌ Translation error: {result.get('responseStatus', 'Unknown error')}")
+            return "[Translation Failed]"
     except Exception as e:
         print(f"❌ Translation error: {str(e)}")
         return "[Translation Failed]"
@@ -105,16 +108,7 @@ print("\n🔄 Translating Titles to English:")
 
 for i, article in enumerate(article_data, 1):
     original_title = article["title"]
-    
-    # Clean and prepare the text for translation
-    cleaned_title = clean_text(original_title)
-    
-    # Translate the text
-    translated = translate_text(cleaned_title)
-    
-    # Clean up the translated text if successful
-    if translated != "[Translation Failed]":
-        translated = html.unescape(translated)
+    translated = translate_text(original_title)
 
     translated_titles.append(translated)
 
